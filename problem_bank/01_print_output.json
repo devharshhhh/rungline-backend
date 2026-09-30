@@ -1,0 +1,32 @@
+[
+  {
+    "topic": "Printing fixed text and multiple lines",
+    "grade": "A",
+    "rank": 1,
+    "title": "Hello World",
+    "statement": "Print the exact text: Hello, World!",
+    "starter_code": "# write your code below\n",
+    "test_cases": [
+      {"input": "", "expected_output": "Hello, World!"},
+      {"input": "", "expected_output": "Hello, World!"}
+    ],
+    "edge_case_notes": "none - pure output check",
+    "common_mistakes": "forgetting the comma or exclamation mark, wrong capitalization",
+    "tags": ["print", "beginner"]
+  },
+  {
+    "topic": "Printing fixed text and multiple lines",
+    "grade": "A",
+    "rank": 2,
+    "title": "Print Three Lines",
+    "statement": "Print exactly these three lines, each on its own line:\nApple\nBanana\nCherry",
+    "starter_code": "# write your code below\n",
+    "test_cases": [
+      {"input": "", "expected_output": "Apple\nBanana\nCherry"},
+      {"input": "", "expected_output": "Apple\nBanana\nCherry"}
+    ],
+    "edge_case_notes": "tests using multiple print statements or \\n correctly",
+    "common_mistakes": "printing all on one line, extra blank lines",
+    "tags": ["print", "beginner"]
+  }
+]
