@@ -7,48 +7,38 @@ Docs: https://ce.judge0.com/
 """
 
 import base64
+import time
 import httpx
 
 from app.core.config import settings
 
 LANGUAGE_IDS = {
-    "python": 71,   # Python 3.8.1
-    "cpp": 54,      # C++ (GCC 9.2.0)
+    "python": 71,
+    "cpp": 54,
 }
 
 
 def _headers() -> dict:
-    # If pointed at a self-hosted Judge0 (no RapidAPI key set), skip these headers.
-    if not settings.judge0_api_key:
-        return {"Content-Type": "application/json"}
-    return {
-        "Content-Type": "application/json",
-        "X-RapidAPI-Key": settings.judge0_api_key,
-        "X-RapidAPI-Host": settings.judge0_api_host,
-    }
+    headers = {"Content-Type": "application/json"}
+    if "rapidapi.com" in settings.judge0_api_url:
+        headers["X-RapidAPI-Key"] = settings.judge0_rapidapi_key
+        headers["X-RapidAPI-Host"] = settings.judge0_rapidapi_host
+    elif settings.judge0_auth_token:
+        headers["X-Auth-Token"] = settings.judge0_auth_token
+    return headers
 
 
 def _b64(text: str) -> str:
     return base64.b64encode(text.encode("utf-8")).decode("ascii")
 
 
-def _from_b64(text: str | None) -> str:
+def _from_b64(text):
     if not text:
         return ""
     return base64.b64decode(text).decode("utf-8", errors="replace")
 
 
-def run_against_test_cases(
-    code: str,
-    language: str,
-    test_cases: list[dict],
-    time_limit_ms: int = 2000,
-) -> list[dict]:
-    """
-    Submits one batch request covering all test cases for a single problem.
-    Returns a list of dicts: {input, expected_output, actual_output, passed,
-    status, stderr}.
-    """
+def run_against_test_cases(code, language, test_cases, time_limit_ms=2000):
     language_id = LANGUAGE_IDS.get(language)
     if language_id is None:
         raise ValueError(f"Unsupported language: {language}")
@@ -64,13 +54,19 @@ def run_against_test_cases(
         for tc in test_cases
     ]
 
-    url = f"{settings.judge0_api_url}/submissions/batch"
-    params = {"base64_encoded": "true", "wait": "true"}
+    submit_url = f"{settings.judge0_api_url}/submissions/batch"
 
     with httpx.Client(timeout=30.0) as client:
-        response = client.post(url, params=params, headers=_headers(), json={"submissions": submissions})
-        response.raise_for_status()
-        results = response.json()
+        submit_response = client.post(
+            submit_url,
+            params={"base64_encoded": "true"},
+            headers=_headers(),
+            json={"submissions": submissions},
+        )
+        submit_response.raise_for_status()
+        tokens = [item["token"] for item in submit_response.json()]
+
+        results = _poll_for_results(client, tokens)
 
     output = []
     for tc, result in zip(test_cases, results):
@@ -90,8 +86,34 @@ def run_against_test_cases(
     return output
 
 
-def classify_error(results: list[dict]) -> str:
-    """Maps Judge0 statuses across all test cases to our internal error_type enum."""
+def _poll_for_results(client, tokens, max_wait_seconds=20.0):
+    get_url = f"{settings.judge0_api_url}/submissions/batch"
+    deadline = time.monotonic() + max_wait_seconds
+    poll_interval = 0.5
+
+    while True:
+        response = client.get(
+            get_url,
+            params={
+                "tokens": ",".join(tokens),
+                "base64_encoded": "true",
+                "fields": "token,status,stdout,stderr,compile_output,message,time,memory",
+            },
+            headers=_headers(),
+        )
+        response.raise_for_status()
+        submissions = response.json()["submissions"]
+
+        if all(s.get("status", {}).get("id", 0) > 2 for s in submissions):
+            return submissions
+
+        if time.monotonic() > deadline:
+            return submissions
+
+        time.sleep(poll_interval)
+
+
+def classify_error(results):
     statuses = {r["status"] for r in results}
     if all(r["passed"] for r in results):
         return "none"
