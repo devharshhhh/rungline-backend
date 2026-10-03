@@ -19,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(problems.router)
+app.include_router(attempts.router)
 app.include_router(users.router)
 
 @app.on_event("startup")
