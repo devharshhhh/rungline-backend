@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import init_db
-from app.api.routes import problems, attempts
-
+from app.api.routes import problems, attempts, users
 app = FastAPI(title="Rungline API", version="0.1.0")
 
 
@@ -20,8 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(problems.router)
-app.include_router(attempts.router)
-
+app.include_router(users.router)
 
 @app.on_event("startup")
 def on_startup():
