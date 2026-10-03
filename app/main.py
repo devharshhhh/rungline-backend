@@ -6,6 +6,12 @@ from app.api.routes import problems, attempts
 
 app = FastAPI(title="Rungline API", version="0.1.0")
 
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # tighten this to your actual frontend domain before going live
